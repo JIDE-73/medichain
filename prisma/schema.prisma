@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../prisma/generated/prisma"
@@ -13,24 +8,218 @@ datasource db {
   schemas = ["public", "auth"]
 }
 
-model user{
-  id      Int      @id @default(autoincrement())
-  email    String   @unique
-  password String
-  name     String?
+model user {
+  id        String   @id @default(uuid())
+
+  email     String   @unique
+  password  String
+  role      String
+
+  doctor    doctor?
+  patient   patient?
+
   tokenLogs tokenLog[]
+
   @@schema("auth")
 }
 
+model person {
+  id        String      @id @default(uuid())
+
+  firstName       String
+  lastName        String
+  birthDate       DateTime
+  gender          String
+  phone           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  doctor      doctor[]
+  patient     patient[]
+
+  @@schema("public")
+}
+
+model doctor {
+  id        String   @id @default(uuid())
+  personId  String
+  userId    String   @unique
+
+  specialty String
+  cedula    String   @unique
+  address   String?
+
+  person    person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+  @@schema("public")
+}
+
+model patient {
+  id        String   @id @default(uuid())
+  personId  String
+  userId    String   @unique
+
+  bloodType String?
+  address   String?
+
+  consultation Consultation[]
+  document Document[]
+
+  person    person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+  @@schema("public")
+}
+
+model medicalHistory {
+  id        String   @id @default(uuid())
+  patientId String
+  doctorId  String
+
+  type      String
+  details   String?
+  date      DateTime?
+
+  @@schema("public")
+}
+
+model MedicalStaff {
+  id          String   @id @default(uuid())
+  firstName   String
+  lastName    String
+  specialty   String
+  license     String? // cédula
+
+  consultations Consultation[]
+
+  @@schema("public")
+}
+
+model Consultation {
+  id            String   @id @default(uuid())
+  patientId     String
+  staffId       String
+  date          DateTime @default(now())
+
+  reason        String?
+  symptoms      String?
+  observations  String?
+
+  patient patient @relation(fields: [patientId], references: [id])
+  staff   MedicalStaff @relation(fields: [staffId], references: [id])
+
+  diagnoses Diagnosis[]
+  prescriptions Prescription[]
+  studies Study[]
+  documents Document[]
+
+  @@schema("public")
+}
+
+model Diagnosis {
+  id             String   @id @default(uuid())
+  consultationId String
+  code           String? // CIE-10 opcional
+  description    String
+  type           String? // agudo, crónico
+
+  consultation Consultation @relation(fields: [consultationId], references: [id])
+
+  @@schema("public")
+}
+
+model Prescription {
+  id             String   @id @default(uuid())
+  consultationId String
+  notes          String?
+
+  consultation Consultation @relation(fields: [consultationId], references: [id])
+
+  items PrescriptionItem[]
+
+  @@schema("public")
+}
+
+model PrescriptionItem {
+  id              String @id @default(uuid())
+  prescriptionId  String
+
+  medicationName  String
+  dose            String
+  frequency       String
+  duration        String
+  instructions    String?
+
+  prescription Prescription @relation(fields: [prescriptionId], references: [id])
+
+  @@schema("public")
+}
+
+model Study {
+  id             String   @id @default(uuid())
+  consultationId String
+
+  type           String // laboratorio, RX, etc.
+  description    String
+  result         String?
+
+  consultation Consultation @relation(fields: [consultationId], references: [id])
+
+  files File[]
+
+  @@schema("public")
+}
+
+model File {
+  id          String @id @default(uuid())
+  url         String
+  fileType    String // pdf, jpg, png
+  description String?
+
+  studyId     String?
+  documentId  String?
+
+  study    Study?    @relation(fields: [studyId], references: [id])
+  document Document? @relation(fields: [documentId], references: [id])
+
+  @@schema("public")
+}
+
+model Document {
+  id             String   @id @default(uuid())
+  patientId      String
+  consultationId String?
+
+  type           String
+  title          String
+  content        Json
+
+  issuedAt       DateTime @default(now())
+
+  patient patient @relation(fields: [patientId], references: [id])
+  consultation Consultation? @relation(fields: [consultationId], references: [id])
+
+  files File[]
+
+  @@schema("public")
+}
+
 model tokenLog {
-  id         Int      @id @default(autoincrement())
-  usuario_id Int
+  id         String      @id @default(uuid())
+  usuarioId String
+
   token      String   @unique
   status   Boolean  @default(false)
   createdAt  DateTime @default(now())
-  user       user     @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  
+  user       user     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
-  @@index([usuario_id])
+  @@index([usuarioId])
   @@index([token])
+
   @@schema("auth")
 }
