@@ -30,4 +30,12 @@ type patient = {
   address?: string;
 };
 
-export { user, person, doctor, patient };
+type medHistory = {
+  patientId: string;
+  doctorId: string;
+  type: string;
+  details?: string;
+  date?: Date;
+};
+
+export { user, person, doctor, patient, medHistory };
